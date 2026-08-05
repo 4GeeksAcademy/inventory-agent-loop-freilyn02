@@ -23,6 +23,7 @@ ensure_csv_exists()
 
 def read_all_products() -> list[dict]:
     """Read all products from products.csv and return them as a list of dicts."""
+    ensure_csv_exists()
     with open(CSV_FILE, mode="r", newline="") as f:
         reader = csv.DictReader(f)
         products = []
