@@ -1,23 +1,96 @@
-# Python Hello
+# AI Inventory Agent Loop
 
-The most basic boilerplate to start a Python project at 4Geeks is to start your very first Python project from scratch.
+A two-component inventory management system:
 
-## What to do next?
+1. A FastAPI service that manages product stock, persisted to `products.csv`.
+2. A Python AI agent that talks to the user in natural language and uses the
+   API as tools through a manually implemented Observe -> Think -> Act ->
+   Update -> Repeat loop, powered by Groq.
 
-Open the `main.py` file and start writing your code.
+## Project structure
 
-Execute your code by typing the following command on your terminal:
+.
+├── api/
+│ ├── init.py
+│ └── app.py # FastAPI inventory service
+├── agent.py # AI agent with manual tool-calling loop
+├── products.csv # created automatically by the API (not versioned)
+├── conversation_log.csv # created automatically by the agent (not versioned)
+├── requirements.txt
+└── .env.example
+
+
+## Setup
+
+1. Clone this repository and create a virtual environment:
 
 ```bash
-$ python main.py
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
 ```
 
-You can create and include as many python files (a.k.a. modules) as you want using the import statements.
+2. Create your `.env` file from the example and add your Groq API key
+   (get one for free at https://console.groq.com/keys):
 
-## Requirements
+```bash
+cp .env.example .env
+# then edit .env and set GROQ_API_KEY=your_real_key
+```
 
-Make sure you have Python installed in your computer. We strongly recommend [installing Python through Pyenv ](https://4geeks.com/how-to/what-is-pyenv-and-how-to-install-pyenv) to avoid version conflicts in the future.
+## Running the project (two terminals)
 
-### Contributors
+**Terminal 1 — start the inventory API:**
 
-This template was built as part of the [4Geeks Python Resources](https://4geeks.com/technology/python) for learning at [4Geeks.com](https://4geeks.com) by [Alejandro Sanchez](https://twitter.com/alesanchezr) and [many other contributors](https://github.com/4GeeksAcademy/python-hello/graphs/contributors).
+```bash
+source venv/bin/activate
+uvicorn api.app:app --reload --host 0.0.0.0 --port 8000
+```
+
+The API will be available at `http://localhost:8000`, with interactive docs
+at `http://localhost:8000/docs`. `products.csv` is created automatically on
+first run.
+
+**Terminal 2 — start the agent:**
+
+```bash
+source venv/bin/activate
+python agent.py
+```
+
+Type natural language messages at the `You:` prompt. Type `quit` or `exit`
+to stop. `conversation_log.csv` is created automatically and appended to on
+every event.
+
+## Example interactions
+
+You: create a product called oat milk with 5 units
+Agent: The product 'oat milk' has been created with 5 units.
+
+You: we just received 30 units of oat milk
+Agent: The stock of oat milk has been updated to 35 units.
+
+You: we sold 12 bags of arabica today
+Agent: 12 bags of arabica have been sold, leaving 8 bags in stock.
+
+You: what products are running low?
+Agent: The product 'arabica' with 8 bags is currently running low on stock.
+
+
+## API endpoints
+
+| Method | Endpoint                 | Description                                  |
+|--------|---------------------------|-----------------------------------------------|
+| GET    | `/inventory`               | List all products                            |
+| POST   | `/inventory`                | Create a new product (`name`, `quantity`, `unit`) |
+| PATCH  | `/inventory/{product_id}`   | Apply a signed stock delta                   |
+| GET    | `/inventory/alerts`         | List products below threshold (default 10)   |
+
+## Notes
+
+- No agent framework is used — the tool-calling loop in `agent.py` is
+  manually implemented.
+- `products.csv` and `conversation_log.csv` are regenerated automatically on
+  first run and are not committed to version control.
+- The agent retries once on transient LLM tool-call generation failures
+  before falling back to an error message.
